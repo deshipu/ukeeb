@@ -36,8 +36,8 @@ class Keeb:
         self.last_state = bytearray(len(cols))
         self.current_layer = 0
         self.pressed_keys = set()
-        self.last_held = 0
-        self.release_next = 0
+        self.last_held = None
+        self.release_next = None
 
     def animate(self):
         pass
@@ -48,7 +48,7 @@ class Keeb:
                 self.pressed_keys.remove(self.release_next)
             except KeyError:
                 pass
-            self.release_next = 0
+            self.release_next = None
         for x, col in enumerate(self.cols):
             col.value = 1
             debounce_bits = 0
@@ -66,6 +66,9 @@ class Keeb:
                     continue
                 if state:
                     self.press(x, y)
+                    self.key_x = x
+                    self.key_y = y
+                    self.key_time = time.monotonic()
                 else:
                     self.release(x, y)
             col.value = 0
@@ -84,14 +87,13 @@ class Keeb:
         if key < 0:
             self.send_media_report(-key)
             return
-        if key & 0xff00:
-            self.pressed_keys.add(key & 0xff00)
-        if key & 0x00ff:
-            self.pressed_keys.add(key & 0x00ff)
+        self.pressed_keys.add(key)
 
     def release_all(self, x, y):
         for layer in self.matrix:
             key = layer[y][x]
+            if not key:
+                continue
             if isinstance(key, HoldTap):
                 key = key.hold
             if isinstance(key, Layer):
@@ -100,11 +102,10 @@ class Keeb:
             if key < 0:
                 self.send_media_report(0)
                 continue
-            for mask in 0xff00, 0x00ff:
-                try:
-                    self.pressed_keys.remove(key & mask)
-                except KeyError:
-                    pass
+            try:
+                self.pressed_keys.remove(key)
+            except KeyError:
+                pass
 
     def release(self, x, y):
         key = self.matrix[self.current_layer][y][x]
@@ -117,6 +118,7 @@ class Keeb:
         self.release_all(x, y)
 
     def send_report(self, pressed_keys):
+        print(pressed_keys)
         report = bytearray(8)
         report_mod_keys = memoryview(report)[0:1]
         report_no_mod_keys = memoryview(report)[2:]
@@ -124,11 +126,12 @@ class Keeb:
         for code in pressed_keys:
             if code == 0:
                 continue
-            elif code & 0xff00 and code & 0xff == 0:
+            if code & 0xff00:
                 report_mod_keys[0] |= (code & 0xff00) >> 8
-            elif keys < 6:
-                report_no_mod_keys[keys] = code
+            if code & 0x00ff and keys < 6:
+                report_no_mod_keys[keys] = code & 0x00ff
                 keys += 1
+        print(report)
         self.keyboard_device.send_report(report)
 
     def send_media_report(self, code):
