@@ -118,7 +118,6 @@ class Keeb:
         self.release_all(x, y)
 
     def send_report(self, pressed_keys):
-        print(pressed_keys)
         report = bytearray(8)
         report_mod_keys = memoryview(report)[0:1]
         report_no_mod_keys = memoryview(report)[2:]
@@ -131,7 +130,6 @@ class Keeb:
             if code & 0x00ff and keys < 6:
                 report_no_mod_keys[keys] = code & 0x00ff
                 keys += 1
-        print(report)
         self.keyboard_device.send_report(report)
 
     def send_media_report(self, code):
@@ -153,4 +151,3 @@ class Keeb:
             if anim_delay > 7:
                 self.animate()
                 anim_delay = 0
-            time.sleep(0.01)
