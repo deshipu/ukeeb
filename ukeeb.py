@@ -4,18 +4,34 @@ import time
 
 
 class HoldTap:
+    """
+    A special behavior, that lets you send a modifier when a key
+    is held, or a scan code when it is tapped.
+    """
     def __init__(self, hold, tap):
         self.hold = hold
         self.tap = tap
 
 
 class Layer:
+    """
+    A special behavior that lets you switch layers.
+    """
     def __init__(self, layer):
         self.layer = layer
 
 
 class Keeb:
+    """The main class representing the keyboard itself."""
+
     def __init__(self, matrix, cols, rows):
+        """
+        Creates a keyboard. ``matrix`` is a tuple of tuples of
+        tuples defining the layers, rows and individual key scan
+        codes, modifiers or special keys. ``cols`` and ``rows`` are
+        tuples of DigitalInOut defining the pins of the matrix.
+        """
+
         self.matrix = matrix
         self.cols = [digitalio.DigitalInOut(pin) for pin in cols]
         self.rows = [digitalio.DigitalInOut(pin) for pin in rows]
@@ -40,9 +56,14 @@ class Keeb:
         self.release_next = None
 
     def animate(self):
-        pass
+        """Override this to do something on every animation frame."""
 
     def scan(self):
+        """
+        Scan the matrix and call ``press`` and ``release`` to update
+        the ``pressed_keys`` attribute and handle other behaviors.
+        Called continuously from the main loop.
+        """
         if self.release_next:
             try:
                 self.pressed_keys.remove(self.release_next)
@@ -75,6 +96,8 @@ class Keeb:
             self.debounce[x] = debounce_bits
 
     def press(self, x, y):
+        """Called when a keys is pressed."""
+
         if self.last_held:
             self.last_held = None
         key = self.matrix[self.current_layer][y][x]
@@ -90,6 +113,8 @@ class Keeb:
         self.pressed_keys.add(key)
 
     def release_all(self, x, y):
+        """A helper to make sure keys from all layers are released."""
+
         for layer in self.matrix:
             key = layer[y][x]
             if not key:
@@ -108,6 +133,8 @@ class Keeb:
                 pass
 
     def release(self, x, y):
+        """Called when a key is released."""
+
         key = self.matrix[self.current_layer][y][x]
         if self.last_held == key:
             self.release_all(x, y)
@@ -118,6 +145,8 @@ class Keeb:
         self.release_all(x, y)
 
     def send_report(self, pressed_keys):
+        """Sends the USB HID keyboard report."""
+
         report = bytearray(8)
         report_mod_keys = memoryview(report)[0:1]
         report_no_mod_keys = memoryview(report)[2:]
@@ -133,6 +162,8 @@ class Keeb:
         self.keyboard_device.send_report(report)
 
     def send_media_report(self, code):
+        """Sends the USB HID media report."""
+
         if not self.media_device:
             return
         report = bytearray(2)
@@ -140,6 +171,8 @@ class Keeb:
         self.media_device.send_report(report)
 
     def run(self):
+        """Runs the main loop."""
+
         last_pressed_keys = set()
         anim_delay = 0
         while True:
