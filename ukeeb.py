@@ -1,6 +1,5 @@
-import digitalio
 import usb_hid
-import time
+import keypad
 
 
 class HoldTap:
@@ -24,6 +23,7 @@ class Layer:
 class Keeb:
     """The main class representing the keyboard itself."""
 
+
     def __init__(self, matrix, cols, rows):
         """
         Creates a keyboard. ``matrix`` is a tuple of tuples of
@@ -33,12 +33,8 @@ class Keeb:
         """
 
         self.matrix = matrix
-        self.cols = [digitalio.DigitalInOut(pin) for pin in cols]
-        self.rows = [digitalio.DigitalInOut(pin) for pin in rows]
-        for col in self.cols:
-            col.switch_to_output(value=0)
-        for row in self.rows:
-            row.switch_to_input(pull=digitalio.Pull.DOWN)
+        self.keypad = keypad.KeyMatrix(rows, cols)
+        self.width = len(cols)
         self.keyboard_device = None
         self.media_device = None
         for device in usb_hid.devices:
@@ -48,8 +44,6 @@ class Keeb:
                 self.media_device = device
         if not self.keyboard_device:
             raise RuntimeError("no HID keyboard device")
-        self.debounce = bytearray(len(cols))
-        self.last_state = bytearray(len(cols))
         self.current_layer = 0
         self.pressed_keys = set()
         self.last_held = None
@@ -70,30 +64,17 @@ class Keeb:
             except KeyError:
                 pass
             self.release_next = None
-        for x, col in enumerate(self.cols):
-            col.value = 1
-            debounce_bits = 0
-            for y, row in enumerate(self.rows):
-                state = row.value
-                debounce_bits |= state << y
-                if state != bool(self.debounce[x] & (1 << y)):
-                    continue
-                last_state = bool(self.last_state[x] & (1 << y))
-                if state:
-                    self.last_state[x] |= 1 << y
-                else:
-                    self.last_state[x] &= ~(1 << y)
-                if state == last_state:
-                    continue
-                if state:
-                    self.press(x, y)
-                    self.key_x = x
-                    self.key_y = y
-                    self.key_time = time.monotonic()
-                else:
-                    self.release(x, y)
-            col.value = 0
-            self.debounce[x] = debounce_bits
+        event = keypad.Event()
+        while self.keypad.events:
+            self.keypad.events.get_into(event)
+            y, x = divmod(event.key_number, self.width)
+            if event.pressed:
+                self.press(x, y)
+            else:
+                self.release(x, y)
+
+    def animate(self):
+        """Override this to do something on every animation frame."""
 
     def press(self, x, y):
         """Called when a keys is pressed."""
