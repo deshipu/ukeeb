@@ -10,6 +10,7 @@ class HoldTap:
     def __init__(self, hold, tap):
         self.hold = hold
         self.tap = tap
+        self.layer = 0
 
 
 class Layer:
@@ -84,6 +85,7 @@ class Keeb:
         key = self.matrix[self.current_layer][y][x]
         if isinstance(key, HoldTap):
             self.last_held = key
+            self.last_held.layer = self.current_layer
             key = key.hold
         if isinstance(key, Layer):
             self.current_layer = key.layer
@@ -116,14 +118,12 @@ class Keeb:
     def release(self, x, y):
         """Called when a key is released."""
 
-        key = self.matrix[self.current_layer][y][x]
-        if self.last_held == key:
-            self.release_all(x, y)
-            self.pressed_keys.add(key.tap)
-            self.release_next = key.tap
-            self.last_held = None
-            return
         self.release_all(x, y)
+        if (self.last_held and
+                self.last_held == self.matrix[self.last_held.layer][y][x]):
+            self.pressed_keys.add(self.last_held.tap)
+            self.release_next = self.last_held.tap
+            self.last_held = None
 
     def send_report(self, pressed_keys):
         """Sends the USB HID keyboard report."""
