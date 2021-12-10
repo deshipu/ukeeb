@@ -26,10 +26,19 @@ b'\x05\x01\t\x06\xa1\x01\x85\x04u\x01\x95\x08\x05\x07\x19\xe0)\xe7\x15\x00%\x01\
     out_report_lengths = (1,),
     report_ids=(4,),
 )
-usb_hid.enable((
-    bitmap_keyboard,
-    usb_hid.Device.CONSUMER_CONTROL
-), boot_device=1)
+
+if not row.value:
+    storage.disable_usb_drive()
+    usb_cdc.disable()
+    usb_hid.enable((
+        bitmap_keyboard,
+        usb_hid.Device.CONSUMER_CONTROL
+    ), boot_device=1)
+else:
+    usb_hid.enable((
+        bitmap_keyboard,
+        usb_hid.Device.CONSUMER_CONTROL
+    ), boot_device=0)
 
 row.deinit()
 col.deinit()

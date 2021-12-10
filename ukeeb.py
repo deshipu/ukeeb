@@ -151,7 +151,7 @@ class Keeb:
             if code & 0xff00:
                 report_mod_keys[0] |= (code & 0xff00) >> 8
             if code & 0x00ff:
-                report_bitmap[code >> 3] |= 1 << (code & 0x7)
+                report_bitmap[(code & 0x00ff) >> 3] |= 1 << (code & 0x7)
         self.keyboard_device.send_report(report)
 
     def send_media_report(self, code):
