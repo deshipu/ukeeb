@@ -125,21 +125,33 @@ class Keeb:
             self.release_next = self.last_held.tap
             self.last_held = None
 
-    def send_report(self, pressed_keys):
+    def send_boot_report(self, pressed_keys):
         """Sends the USB HID keyboard report."""
 
         report = bytearray(8)
         report_mod_keys = memoryview(report)[0:1]
-        report_no_mod_keys = memoryview(report)[2:]
+        report_no_mod_keys = memoryview(report)[1:]
         keys = 0
         for code in pressed_keys:
-            if code == 0:
-                continue
             if code & 0xff00:
                 report_mod_keys[0] |= (code & 0xff00) >> 8
-            if code & 0x00ff and keys < 6:
-                report_no_mod_keys[keys] = code & 0x00ff
+            if code & 0x00ff:
+                if keys < 6:
+                    report_no_mod_keys[keys] = code & 0x00ff
                 keys += 1
+        self.keyboard_device.send_report(report)
+
+    def send_nkro_report(self, pressed_keys):
+        """Sends the USB HID NKRO keyboard report."""
+
+        report = bytearray(16)
+        report_mod_keys = memoryview(report)[0:1]
+        report_bitmap = memoryview(report)[1:]
+        for code in pressed_keys:
+            if code & 0xff00:
+                report_mod_keys[0] |= (code & 0xff00) >> 8
+            if code & 0x00ff:
+                report_bitmap[code >> 3] |= 1 << (code & 0x7)
         self.keyboard_device.send_report(report)
 
     def send_media_report(self, code):
@@ -153,13 +165,17 @@ class Keeb:
 
     def run(self):
         """Runs the main loop."""
+        if usb_hid.get_boot_device() == 1:
+            send_report = self.send_boot_report
+        else:
+            send_report = self.send_nkro_report
 
         last_pressed_keys = set()
         anim_delay = 0
         while True:
             self.scan()
             if self.pressed_keys != last_pressed_keys:
-                self.send_report(self.pressed_keys)
+                send_report(self.pressed_keys)
                 last_pressed_keys = set(self.pressed_keys)
             anim_delay += 1
             if anim_delay > 7:

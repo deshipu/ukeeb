@@ -2,12 +2,15 @@ import board
 import ukeeb
 from ukeeb import HoldTap as HT
 from micropython import const
+import rotaryio
 import analogio
 import digitalio
 import usb_hid
 
-ROWS = (board.A6, board.A1, board.A4, board.D6, board.MOSI, boar.SCK, board.A3)
-COLS = (board.D12, board.D10, board.D13, board.MISO, board.LED, board.EN)
+ROWS = (board.D9, board.RX, board.TX, board.A5, board.A2)
+COLS = (board.D14, board.LED, board.MISO, board.SCK, board.MOSI, board.D6,
+        board.D5, board.D11, board.D13, board.D10, board.D12, board.SDA,
+        board.SCL)
 
 _A = const(4)
 _B = const(5)
@@ -104,9 +107,7 @@ _RSH = const(0x2000) # Right shift
 _RAL = const(0x4000) # Right alternate
 _RSP = const(0x8000) # Right super
 
-_L1 = ukeeb.Layer(1)
-_L2 = ukeeb.Layer(2)
-_L3 = ukeeb.Layer(3)
+_FN = ukeeb.Layer(1)
 
 _MT = const(-226) # Mute
 _VU = const(-233) # Volume up
@@ -121,56 +122,65 @@ _PP = const(-205) # Play/pause
 
 
 MATRIX = (
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
+    (_GR,  _1, _2, _3, _4, _5,   _6, _7,  _8,  _9, _0,  _MN,  _EQ),
+    (_ESC, _Q, _W, _E, _R, _T,   _Y, _U,  _I,  _O, _P,  _BSL, _BS),
+    (_TAB, _A, _S, _D, _F, _G,   _H, _J,  _K,  _L, _SC, _QT,  _ENT),
+    (_LSH, _Z, _X, _C, _V, _B,   _N, _M, _CM, _DT, _SL, _AU,  _RSH),
+    (_LCT, _LSP, _LB, _RB, _LAL, _FN,
+     _SPC, _RAL, _INS, _DEL, _AL, _AD, _AR),
 ), (
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-), (
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
+    (_APP,  _F1, _F2, _F3, _F4, _F5, _F6, _F7, _F8, _F9, _F10, _MN, _EQ),
+    (_ESC,  _PP, _VU, _MT, _R, _T, _Y, _U, _I, _F11, _F12, _BSL, _BS),
+    (_CAPS, _NT, _VD, _NT, _F, _G, _H, _J, _K, _L, _SC, _QT,  _ENT),
+    (_LSH, _Z, _X, _C, _V, _B,  _N, _M, _CM, _DT, _SL, _PGUP, _RSH),
+    (_RCT, _RSP, _PS, _DEL, _LAL, _FN,
+     _SPC, _RAL, _LB, _RB, _HOME, _PGDN, _END),
 ),
 
 class Keeb(ukeeb.Keeb):
     def __init__(self, matrix, cols, rows):
         super().__init__(matrix, cols, rows)
+        self.knob = rotaryio.IncrementalEncoder(board.AREF, board.A1)
         for device in usb_hid.devices:
             if device.usage == 0x02 and device.usage_page == 0x01:
                 break
         else:
             raise RuntimeError("no HID mouse device")
         self.mouse_device = device
-        self.mx = analogio.AnalogIn(board.AREF)
-        self.my = analogio.AnalogIn(board.A0)
+        self.mx = analogio.AnalogIn(board.A3)
+        self.my = analogio.AnalogIn(board.A4)
+        self.lmb = digitalio.DigitalInOut(board.A0)
+        self.lmb.switch_to_input(pull = digitalio.Pull.UP)
+        self.rmb = digitalio.DigitalInOut(board.A6)
+        self.rmb.switch_to_input(pull = digitalio.Pull.UP)
         self.mouse_move = False
+        self.last_knob = 0
 
     def send_mouse_report(self):
         report = bytearray(4)
         report[0] = ((not self.lmb.value) << 0) | ((not self.rmb.value) << 1)
-        x = self.mx.value - 0x7fff + 2500
-        y = 0x7fff - self.my.value - 500
-        if abs(x) + abs(y) > 4500:
-            report[1] = min(max(-127, x >> 11), 127) & 0xff
-            report[2] = min(max(-127, y >> 11), 127) & 0xff
+        knob = self.knob.position
+        if self.last_knob != knob:
+            report[3] = max(-127, min(127, knob - self.last_knob)) & 0xff
+        self.last_knob = knob
+
+        x = self.mx.value - 0x7fff - 500
+        y = 0x7fff - self.my.value + 500
+        if x * x + y * y > 4000 * 4000:
+            if x > 0:
+                x = max(0, x - 3800)
+            else:
+                x = min(0, x + 3800)
+            if y > 0:
+                y = max(0, y - 3800)
+            else:
+                y = min(0, y + 3800)
+            report[1] = min(max(-127, x >> 10), 127) & 0xff
+            report[2] = min(max(-127, y >> 10), 127) & 0xff
         else:
             report[2] = 0
             report[1] = 0
-        if report[0] or report[1] or report[2]:
+        if report[0] or report[1] or report[2] or report[3]:
             self.mouse_move = False
             self.mouse_device.send_report(report)
         elif not self.mouse_move:
@@ -179,5 +189,3 @@ class Keeb(ukeeb.Keeb):
 
     def animate(self):
         self.send_mouse_report()
-
-Keeb = ukeeb.Keeb

@@ -141,7 +141,7 @@ MATRIX = (
   (   0,   _VD, 0,    0,     0, 0,   0,   0, _PS, _SCL, _PP),
 ),
 
-class Flatreus(ukeeb.Keeb):
+class Keeb(ukeeb.Keeb):
     def __init__(self, matrix, cols, rows):
         super().__init__(matrix, cols, rows)
         for device in usb_hid.devices:
@@ -178,6 +178,3 @@ class Flatreus(ukeeb.Keeb):
 
     def animate(self):
         self.send_mouse_report()
-
-
-Flatreus(MATRIX, COLS, ROWS).run()

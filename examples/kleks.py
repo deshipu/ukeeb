@@ -6,8 +6,9 @@ import analogio
 import digitalio
 import usb_hid
 
-ROWS = (board.A6, board.A1, board.A4, board.D6, board.MOSI, boar.SCK, board.A3)
-COLS = (board.D12, board.D10, board.D13, board.MISO, board.LED, board.EN)
+ROWS = (board.A3, board.A1, board.A4)
+COLS = (board.AREF, board.A0, board.D6, board.MOSI, board.SCK, board.MISO,
+        board.A2, board.A5, board.TX, board.RX, board.D9, board.D5)
 
 _A = const(4)
 _B = const(5)
@@ -121,63 +122,26 @@ _PP = const(-205) # Play/pause
 
 
 MATRIX = (
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
+  (   _Q, _A, _W, _E, _R, _T, _Y, _U, _I,  _O,  _QT, _P),
+  ( _TAB, HT(_LSH, _Z), _S, _D, _F, _G,
+   _H, _J, _K,  _L,  HT(_RSH, _SL), _ENT),
+  (HT(_L1, _DEL), _ESC, HT(_LSP, _X), HT(_LAL, _C), HT(_LCT, _V), HT(_RAL, _B),
+   HT(_RAL, _N), HT(_RCT, _M), HT(_LAL, _CM), HT(_RSP, _DT), _SPC, HT(_L2, _BS)),
 ), (
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
+  (_F1, _1, _F2, _F3, _F4, _F5, _F6, _F7, _F8, _F9, _0, _F10),
+  (_CAPS, _BSL, _2, _3, _4, _5, _6, _7, _8, _9, _SC, _INS),
+  (_L3, _L2, _AL, _AD, _AU, _AR, _MN, _EQ, _LB, _RB, _L2, _L3),
 ), (
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
-    (0, 0, 0, 0, 0, 0),
+  (_GR, _LSH|_1, _LSH|_GR, 0, _LAL|_F4, _PP,
+   _VD, _VU, _MT, _LAL|_F11, _LSH|_0, _LAL|_F12),
+  (_LAL|_TAB, _LSH|_BSL, _LSH|_2, _LSH|_3, _LSH|_4, _LSH|_5,
+   _LSH|_6, _LSH|_7, _LSH|_8, _LSH|_9, _SC, _INS),
+  (_L3, _L1, _HOME, _PGDN, _PGUP, _END,
+   _LSH|_MN, _LSH|_EQ, _LSH|_LB, _LSH|_RB, _L1, _L3),
+), (
+  (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+  (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+  (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
 ),
-
-class Keeb(ukeeb.Keeb):
-    def __init__(self, matrix, cols, rows):
-        super().__init__(matrix, cols, rows)
-        for device in usb_hid.devices:
-            if device.usage == 0x02 and device.usage_page == 0x01:
-                break
-        else:
-            raise RuntimeError("no HID mouse device")
-        self.mouse_device = device
-        self.mx = analogio.AnalogIn(board.AREF)
-        self.my = analogio.AnalogIn(board.A0)
-        self.mouse_move = False
-
-    def send_mouse_report(self):
-        report = bytearray(4)
-        report[0] = ((not self.lmb.value) << 0) | ((not self.rmb.value) << 1)
-        x = self.mx.value - 0x7fff + 2500
-        y = 0x7fff - self.my.value - 500
-        if abs(x) + abs(y) > 4500:
-            report[1] = min(max(-127, x >> 11), 127) & 0xff
-            report[2] = min(max(-127, y >> 11), 127) & 0xff
-        else:
-            report[2] = 0
-            report[1] = 0
-        if report[0] or report[1] or report[2]:
-            self.mouse_move = False
-            self.mouse_device.send_report(report)
-        elif not self.mouse_move:
-            self.mouse_move = True
-            self.mouse_device.send_report(report)
-
-    def animate(self):
-        self.send_mouse_report()
 
 Keeb = ukeeb.Keeb

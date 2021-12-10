@@ -145,7 +145,7 @@ COLS = (board.A6, board.A1, board.A4, board.A3, board.D6,
 ROWS = (board.MOSI, board.AREF, board.D11, board.D5)
 
 
-class Dorsch40k(ukeeb.Keeb):
+class Keeb(ukeeb.Keeb):
     def __init__(self, matrix, cols, rows):
         super().__init__(matrix, cols, rows)
         self.leds = dotstar.DotStar(board.A5, board.A2, 40, brightness=0.1,
@@ -185,5 +185,3 @@ class Dorsch40k(ukeeb.Keeb):
         self.key_x = x
         self.key_y = y
         self.key_time = time.monotonic()
-
-Dorsch40k(MATRIX, COLS, ROWS).run()

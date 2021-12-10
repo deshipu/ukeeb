@@ -155,4 +155,4 @@ MATRIX = (
  (_ESC,_LCT,_APP,_L1,_LAL,_SPC,   _N0,_DOT,_DOT, _RCT,    0,_HOME, _PGDN,_END),
 ),
 
-ukeeb.Keeb(MATRIX, COLS, ROWS).run()
+Keeb = ukeeb.Keeb

@@ -1,11 +1,12 @@
 A minimal USB keyboard library for CircuitPython
 ================================================
 
-Copy the file ``ukeeb.py`` to your board. Then copy the ``boot.py`` from
-``examples`` and adjust pins and desired HID devices, then create a ``code.py``
-file using one of the example boards.
+Copy the files `ukeeb.py`, `boot.py` and `main.py` to the root of your
+board, and then create a file `matrix.py` for your particular board based
+on the examples.
 
 By default the keyboard will only come up as USB HID keyboard, but if you hold
-down the key on the intersection of column and row specified in ``boot.py``,
-while connecting it, the ``CIRCUITPY`` drive and serial ``REPL`` will become
-available.
+down the key on the first row and first column while connecting it, the
+``CIRCUITPY`` drive and serial ``REPL`` will become available.
+
+CircuitPython at least 7.1.0-beta2 is required.

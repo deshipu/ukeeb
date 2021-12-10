@@ -123,4 +123,4 @@ MATRIX = (
     (_A,   _S,   _D),
 ),
 
-ukeeb.Keeb(MATRIX, COLS, ROWS).run()
+Keeb = ukeeb.Keeb
