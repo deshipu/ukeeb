@@ -1,5 +1,6 @@
 import usb_hid
 import keypad
+import supervisor
 
 
 class HoldTap:
@@ -48,6 +49,8 @@ class Keeb:
         self.current_layer = 0
         self.pressed_keys = set()
         self.last_held = None
+        self.last_held_timestamp = None
+        self.last_held_active = False
         self.release_next = None
 
     def animate(self):
@@ -59,6 +62,10 @@ class Keeb:
         the ``pressed_keys`` attribute and handle other behaviors.
         Called continuously from the main loop.
         """
+        if (self.last_held is not None and not self.last_held_active and
+            supervisor.ticks_ms() - self.last_held_timestamp  > 40):
+            self.add_key(self.last_held.hold)
+            self.last_held_active = True
         if self.release_next:
             try:
                 self.pressed_keys.remove(self.release_next)
@@ -70,23 +77,31 @@ class Keeb:
             self.keypad.events.get_into(event)
             y, x = divmod(event.key_number, self.width)
             if event.pressed:
-                self.press(x, y)
+                self.press(x, y, event.timestamp)
             else:
                 self.release(x, y)
 
     def animate(self):
         """Override this to do something on every animation frame."""
 
-    def press(self, x, y):
+    def press(self, x, y, timestamp):
         """Called when a keys is pressed."""
 
         if self.last_held:
+            if not self.last_held_active:
+                self.pressed_keys.add(self.last_held.tap)
+                self.release_next = self.last_held.tap
             self.last_held = None
+            self.last_held_active = False
         key = self.matrix[self.current_layer][y][x]
         if isinstance(key, HoldTap):
             self.last_held = key
+            self.last_held_timestamp = timestamp
             self.last_held.layer = self.current_layer
-            key = key.hold
+            return
+        self.add_key(key)
+
+    def add_key(self, key):
         if isinstance(key, Layer):
             self.current_layer = key.layer
             return
@@ -119,11 +134,12 @@ class Keeb:
         """Called when a key is released."""
 
         self.release_all(x, y)
-        if (self.last_held and
+        if (self.last_held is not None and
                 self.last_held == self.matrix[self.last_held.layer][y][x]):
             self.pressed_keys.add(self.last_held.tap)
             self.release_next = self.last_held.tap
             self.last_held = None
+            self.last_held_active = False
 
     def send_boot_report(self, pressed_keys):
         """Sends the USB HID keyboard report."""
