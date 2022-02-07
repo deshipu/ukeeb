@@ -120,7 +120,8 @@ class Keeb:
             if isinstance(key, HoldTap):
                 key = key.hold
             if isinstance(key, Layer):
-                self.current_layer = 0
+                if self.current_layer == key.layer:
+                    self.current_layer = 0
                 continue
             if key < 0:
                 self.send_media_report(0)
