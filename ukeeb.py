@@ -35,7 +35,7 @@ class Keeb:
         """
 
         self.matrix = matrix
-        self.keypad = keypad.KeyMatrix(rows, cols)
+        self.keypad = keypad.KeyMatrix(rows, cols, columns_to_anodes=False)
         self.width = len(cols)
         self.keyboard_device = None
         self.media_device = None
@@ -137,8 +137,9 @@ class Keeb:
         self.release_all(x, y)
         if (self.last_held is not None and
                 self.last_held == self.matrix[self.last_held.layer][y][x]):
-            self.pressed_keys.add(self.last_held.tap)
-            self.release_next = self.last_held.tap
+            if supervisor.ticks_ms() - self.last_held_timestamp < 750:
+                self.pressed_keys.add(self.last_held.tap)
+                self.release_next = self.last_held.tap
             self.last_held = None
             self.last_held_active = False
 
@@ -188,13 +189,9 @@ class Keeb:
             send_report = self.send_nkro_report
 
         last_pressed_keys = set()
-        anim_delay = 0
         while True:
             self.scan()
             if self.pressed_keys != last_pressed_keys:
                 send_report(self.pressed_keys)
                 last_pressed_keys = set(self.pressed_keys)
-            anim_delay += 1
-            if anim_delay > 7:
-                self.animate()
-                anim_delay = 0
+            self.animate()
